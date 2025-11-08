@@ -1,223 +1,218 @@
-PART 1 — Infrastructure Setup (Terraform + AWS)
- Purpose
+🚀 DevOps Cloud Automation Project (Terraform, Ansible, Docker, GitHub Actions)
+🧩 PART 1 — Infrastructure Setup (Terraform + AWS)
 
-Automate provisioning of AWS cloud resources.
+🎯 Purpose:
+To automate provisioning of AWS infrastructure using Infrastructure as Code (IaC) with Terraform.
 
- AWS Services Used
+🛠️ AWS Services Used:
 
- EC2 Instance
- VPC + Subnet
- Security Group (Allow HTTP 80 + SSH 22)
- Key Pair for SSH access
+EC2 Instance – compute node for deployment
 
- Folder Structure
+VPC + Subnet – secure network segmentation
+
+Security Group – allow inbound traffic on ports 80 (HTTP) and 22 (SSH)
+
+Key Pair – for secure SSH access
+
+📂 Folder Structure:
+
 project/
- ├── terraform/
- 
- │    ├── variables.tf
- │    ├── main.tf
- │    ├── outputs.tf
+ └── terraform/
+      ├── variables.tf
+      ├── main.tf
+      ├── outputs.tf
 
-Steps to Provision Infrastructure
-Install Terraform
+
+⚙️ Steps to Provision Infrastructure:
+
+# 1. Install Terraform
 sudo yum install -y terraform
 terraform -v
 
-Configure AWS Credentials
+# 2. Configure AWS credentials
 aws configure
 
-Initialize Terraform
+# 3. Initialize Terraform
 cd terraform
 terraform init
 
-Check and Apply Plan
+# 4. Plan and apply
 terraform plan
 terraform apply -auto-approve
 
-Output
 
-Terraform prints public IP of EC2.
-SSH into EC2:
+✅ Output:
+Terraform provisions the EC2 instance and prints its public IP.
+You can then SSH into it using:
 
 ssh -i aws-key.pem ec2-user@<EC2_PUBLIC_IP>
 
-PART 2 — Configuration Management (Ansible + AWS)
-Purpose
+⚙️ PART 2 — Configuration Management (Ansible or Equivalent)
 
-Install Docker & enable auto-start on EC2 automatically.
+🎯 Purpose:
+Automate EC2 server configuration — install Docker and enable it to auto-start on boot.
 
-Ansible Inventory File
+📁 Ansible Inventory Example:
+
 [webserver]
 <EC2_PUBLIC_IP> ansible_user=ec2-user ansible_ssh_private_key_file=../aws-key.pem
 
-Run Playbook
+
+▶️ Run Playbook:
+
 cd ansible
 ansible-playbook -i inventory playbook.yaml
 
- Expected Result:
 
-Docker installed
-Docker service enabled at boot
-User added to docker group
+🧾 Expected Outcome:
 
-Commands
-•	sudo yam update -y
+Docker installed successfully
 
-•	sudo yum install docker -y
+Docker service enabled on startup
 
-•	sudo service docker start
+EC2 user added to Docker group
 
-•	sudo service docker status
+💻 Equivalent Manual Commands (if not using Ansible):
 
-•	sudo su
+sudo yum update -y
+sudo yum install docker -y
+sudo service docker start
+sudo service docker status
+sudo usermod -aG docker ec2-user
+sudo reboot
 
-•	docker version
 
-•	docker search nginx
+🧰 Verification:
 
-•	docker pull nginx
+docker version
+docker ps
 
-•	docker images
 
-•	docker ps
+🐳 Docker Test Run:
 
-•	docker run -d -p 80:80 nginx
+docker run -d -p 80:80 nginx
+docker ps
+docker logs <container_id>
 
-•	docker ps
 
-•	docker logs nginx
+✅ Docker is now running and ready for container deployment.
 
-•	docker ps
+🐳 PART 3 — Docker Container Deployment
 
-•	(now copy id)
+🎯 Purpose:
+Containerize and deploy a simple web application on the EC2 instance.
 
-•	docker logs ID nginx id copy paste 
+📂 Folder Structure:
 
-•	docker network ls
+app/
+ ├── Dockerfile
+ ├── index.html
 
-•	docker stop id
 
-•	docker ps
+🧱 Steps:
 
-•	docker ps -a
+# Connect to EC2
+ssh -i aws-key.pem ec2-user@<EC2_PUBLIC_IP>
 
-•	docker rm id
+# Setup environment
+mkdir myapp && cd myapp
+echo "Welcome to My Docker Web App - Hosted on AWS EC2" > index.html
 
-•	docker ps
+# Create Dockerfile
+vi Dockerfile
+# (insert the following)
+FROM nginx:latest
+COPY . /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+:wq
 
-•	docker ps -a
+# Build and run
+docker build -t myapp .
+docker run -d -p 80:80 myapp
 
-•	docker rmi nginx
 
-•	docker images
+🔍 Verify:
 
+docker ps
 
 
+Visit your application at:
+👉 http://<EC2_PUBLIC_IP>
+You’ll see:
 
-PART 3 — Docker Container Deployment
- Purpose
+“Welcome to My Docker Web App – Hosted on an EC2 instance using Docker!”
 
-Deploy a sample web app container on EC2
-File Structure
+🔁 PART 4 — CI/CD Pipeline (GitHub Actions)
 
- │    ├── Dockerfile
- │    ├── index.html
+🎯 Purpose:
+Automate continuous integration and deployment using GitHub Actions.
 
-Manual Deployment Commands
+⚙️ Workflow:
+Whenever new code is pushed to GitHub:
 
-SSH to EC2:
+GitHub Actions pipeline is triggered
 
-•	sudo usermod -aG docker ec2-user
-•	sudo reboot
+Terraform provisions infrastructure
 
-Re-login → build container:
+Ansible installs and configures Docker
 
-cd app
-•	sudo docker build -t mywebapp .
-•	sudo docker run -d -p 80:80 mywebapp
+Application is automatically deployed
 
-Check running containers:
+📂 Pipeline Structure:
 
-•	docker ps
+.github/workflows/
+ └── deploy.yml
 
-Open browser:
 
+🧩 Example deploy.yml:
 
+name: CI/CD Pipeline
+on:
+  push:
+    branches: [ "main" ]
 
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-•	whoami
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
 
-•	pwd
+      - name: Terraform Init & Apply
+        run: |
+          cd terraform
+          terraform init
+          terraform apply -auto-approve
 
-•	mkdir myapp
+      - name: Deploy Docker App
+        run: |
+          ssh -o StrictHostKeyChecking=no ec2-user@${{ secrets.AWS_EC2_IP }} \
+          "sudo docker build -t myapp /home/ec2-user/myapp && sudo docker run -d -p 80:80 myapp"
 
-•	cd myapp/
 
-•	echo "Hello I am husnain" > index.html
+🧭 GitHub Setup Commands:
 
-•	ls
-
-•	cat index.html
-
-•	touch demo.html
-
-•	ls
-
-•	vi demo.html
-
-•	press i
-•	then
-
-•	write any sentence 
-
-•	press :wq enter 
-
-•	touch Dockerfile
-
-•	ls -1
-•	
-
-•	vi Dockerfile 
-
-•	press i insert mod
-
-•	docker info
-
-•	sudo service docker start
-
-•	docker build -t myapp .
-•	
-
-•	docker images
-•	docker run -p 8080:80 myapp
-
-•	docker run -d -p 8080:80 myapp
-
-•	docker ps
-
-  
-
-PART 4 — CI/CD Pipeline (GitHub Actions)
- Purpose
-
-Whenever code is pushed →
-GitHub Actions triggers
-Terraform deploys infrastructure
-Ansible installs Docker
-App auto-deploys
-
-Pipeline Files
-
- ├── .github/workflows/
- │    
- │    ├── deploy.yml
-
-GitHub Configuration Steps
-Push repository to GitHub
 git init
 git add .
-git commit -m "DevOps Project"
+git commit -m "DevOps Project Initial Commit"
 git branch -M main
-git remote add origin <Your-Repo-URL>
+git remote add origin <your-repo-URL>
 git push -u origin main
 
+
+✅ Expected Result:
+Every push automatically triggers the build → deploy pipeline, ensuring full Continuous Integration and Continuous Deployment.
+
+🧠 End-to-End Workflow Summary
+Stage	Tool	Purpose
+1. Infrastructure	Terraform	Provision AWS EC2, VPC, Security Groups
+2. Configuration	Ansible / Shell	Install and configure Docker automatically
+3. Deployment	Docker	Build and run web app container
+4. Automation	GitHub Actions	CI/CD pipeline triggers automatic deployment
+💡 Final Outcome
+
+A fully automated DevOps pipeline that provisions cloud infrastructure, configures the environment, deploys a containerized web app, and continuously integrates and delivers updates through GitHub.
